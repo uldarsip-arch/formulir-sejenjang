@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
   :root{
     --navy:#16305C;
@@ -173,6 +174,7 @@
     font-family:var(--font-body); font-size:14.5px; color:var(--text); background:#fff;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
+  .field input[readonly]{background:#F5F3EE; color:var(--text-soft); cursor:not-allowed;}
   .field textarea{min-height:100px; resize:vertical;}
   .field input:focus-visible, .field textarea:focus-visible, .field select:focus-visible, button:focus-visible, input[type=radio]:focus-visible, input[type=checkbox]:focus-visible{
     outline:3px solid rgba(47,158,143,0.45); outline-offset:1px; border-color:var(--teal);
@@ -180,6 +182,11 @@
   .field input[aria-invalid=true], .field textarea[aria-invalid=true]{border-color:var(--error);}
   .error-text{color:var(--error); font-size:12.5px; margin-top:6px; display:none;}
   .error-text.show{display:block;}
+  .lookup-status{font-size:12px; margin-top:6px; display:none;}
+  .lookup-status.show{display:block;}
+  .lookup-status.loading{color:var(--text-soft);}
+  .lookup-status.found{color:var(--teal);}
+  .lookup-status.notfound{color:var(--error);}
 
   .choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 14px;}
   @media (max-width:560px){.choice-grid{grid-template-columns:1fr;}}
@@ -212,6 +219,7 @@
   }
   .conditional.show{display:block;}
 
+  .file-field-hint{color:var(--text-soft); font-size:12.5px; margin:2px 0 12px; line-height:1.5;}
   .file-drop{
     border:1.5px dashed var(--border); border-radius:10px; padding:22px; text-align:center;
     font-size:13.5px; color:var(--text-soft); cursor:pointer; background:#fff;
@@ -298,26 +306,33 @@
         <p class="section-sub">Data ini akan digunakan untuk verifikasi dan komunikasi lebih lanjut.</p>
 
         <div class="field">
-          <label class="main" for="namaSekolah">1. Nama Sekolah</label>
+          <label class="main" for="npsn">1. NPSN</label>
+          <p class="hint">Masukkan 8 digit angka. Nama Sekolah &amp; Suku Dinas akan terisi otomatis dari data sekolah DKI Jakarta (jika ditemukan).</p>
+          <input type="text" id="npsn" inputmode="numeric" maxlength="8" required>
+          <p class="lookup-status" id="npsnLookupStatus"></p>
+          <p class="error-text" id="err-npsn">NPSN harus terdiri dari 8 digit angka.</p>
+        </div>
+
+        <div class="field">
+          <label class="main" for="namaSekolah">2. Nama Sekolah</label>
           <input type="text" id="namaSekolah" required>
           <p class="error-text" id="err-namaSekolah">Nama sekolah wajib diisi.</p>
         </div>
 
         <div class="field">
-          <label class="main" for="npsn">2. NPSN</label>
-          <p class="hint">Masukkan 8 digit angka.</p>
-          <input type="text" id="npsn" inputmode="numeric" maxlength="8" required>
-          <p class="error-text" id="err-npsn">NPSN harus terdiri dari 8 digit angka.</p>
+          <label class="main" for="sukuDinas">3. Suku Dinas (SUDIN)</label>
+          <p class="hint">Terisi otomatis berdasarkan NPSN. Bisa diedit manual bila diperlukan.</p>
+          <input type="text" id="sukuDinas">
         </div>
 
         <div class="field">
-          <label class="main" for="namaKoordinator">3. Nama Koordinator / Perwakilan Peserta</label>
+          <label class="main" for="namaKoordinator">4. Nama Koordinator / Perwakilan Peserta</label>
           <input type="text" id="namaKoordinator" required>
           <p class="error-text" id="err-namaKoordinator">Nama koordinator wajib diisi.</p>
         </div>
 
         <div class="field">
-          <label class="main" for="hpKoordinator">4. Nomor HP Koordinator / Perwakilan Peserta</label>
+          <label class="main" for="hpKoordinator">5. Nomor HP Koordinator / Perwakilan Peserta</label>
           <input type="tel" id="hpKoordinator" required placeholder="08xxxxxxxxxx">
           <p class="error-text" id="err-hpKoordinator">Masukkan nomor HP yang valid (8–15 digit).</p>
         </div>
@@ -329,13 +344,13 @@
         <p class="section-sub">Boleh memilih lebih dari satu kekhususan.</p>
 
         <div class="field">
-          <label class="main" for="jumlahPDBK">5. Jumlah Peserta Didik Berkebutuhan Khusus</label>
+          <label class="main" for="jumlahPDBK">6. Jumlah Peserta Didik Berkebutuhan Khusus</label>
           <input type="number" id="jumlahPDBK" min="1" required>
           <p class="error-text" id="err-jumlahPDBK">Isi dengan angka, minimal 1.</p>
         </div>
 
         <div class="field">
-          <label class="main">6. Kekhususan Peserta Didik Berkebutuhan Khusus</label>
+          <label class="main">7. Kekhususan Peserta Didik Berkebutuhan Khusus</label>
 
           <div class="subgroup">
             <p class="subgroup-title">A. Jenis Disabilitas</p>
@@ -373,7 +388,7 @@
         <div class="note-box">Minimal terdapat 7 peserta dalam satu instansi/jenjang.</div>
 
         <div class="field">
-          <label class="main">7. Sasaran Peserta</label>
+          <label class="main">8. Sasaran Peserta</label>
           <div class="choice-grid">
             <label class="choice-item"><input type="checkbox" id="sasaranOrtu" value="Orang Tua"><span>Orang Tua</span></label>
             <label class="choice-item"><input type="checkbox" id="sasaranGuru" value="Guru"><span>Guru</span></label>
@@ -383,14 +398,16 @@
 
         <div class="conditional" id="cond-namaOrtu">
           <label class="main" for="namaOrtu">Daftar Nama Peserta Orang Tua</label>
-          <p class="hint">Tuliskan nama seluruh peserta (satu nama setiap baris).</p>
+          <p class="hint">Tulis Nama Seluruh Peserta (satu nama setiap baris). Contoh:<br>1. Ana<br>2. Budi</p>
           <textarea id="namaOrtu"></textarea>
+          <p class="error-text" id="err-namaOrtu">Mohon tuliskan nama seluruh peserta Orang Tua.</p>
         </div>
 
         <div class="conditional" id="cond-namaGuru">
           <label class="main" for="namaGuru">Daftar Nama Peserta Guru</label>
-          <p class="hint">Tuliskan nama seluruh peserta (satu nama setiap baris).</p>
+          <p class="hint">Tulis Nama Seluruh Peserta (satu nama setiap baris). Contoh:<br>1. Ana<br>2. Budi</p>
           <textarea id="namaGuru"></textarea>
+          <p class="error-text" id="err-namaGuru">Mohon tuliskan nama seluruh peserta Guru.</p>
         </div>
       </div>
 
@@ -399,7 +416,7 @@
         <p class="section-title">Bagian D. Tujuan Materi</p>
 
         <div class="field">
-          <label class="main">8. Tujuan Materi yang Dibutuhkan</label>
+          <label class="main">9. Tujuan Materi yang Dibutuhkan</label>
           <div class="choice-grid" style="grid-template-columns:1fr;" id="grid-tujuan"></div>
           <p class="error-text" id="err-tujuanMateri">Pilih salah satu tujuan materi.</p>
         </div>
@@ -415,7 +432,7 @@
       <div class="step-panel" data-step="5">
         <p class="section-title">Bagian E. Uraian Permasalahan</p>
         <div class="field">
-          <label class="main" for="uraianMasalah">9. Uraian Masalah</label>
+          <label class="main" for="uraianMasalah">10. Uraian Masalah</label>
           <p class="hint">Jelaskan kondisi, kendala, atau permasalahan yang dihadapi terkait peserta didik berkebutuhan khusus sehingga memerlukan Program SEJENJANG.</p>
           <textarea id="uraianMasalah" required style="min-height:150px;"></textarea>
           <p class="error-text" id="err-uraianMasalah">Uraian masalah wajib diisi.</p>
@@ -428,7 +445,7 @@
         <div class="info-box">Setelah pelaksanaan Program SEJENJANG, instansi bersedia memberikan umpan balik (feedback) sebagai bagian dari evaluasi layanan.</div>
 
         <div class="field">
-          <label class="main">10. Apakah Anda siap berkomitmen memberikan umpan balik layanan setelah mengikuti Program SEJENJANG?</label>
+          <label class="main">11. Apakah Anda siap berkomitmen memberikan umpan balik layanan setelah mengikuti Program SEJENJANG?</label>
           <div class="choice-grid">
             <label class="choice-item"><input type="radio" name="komitmen" value="Ya"><span>Ya</span></label>
             <label class="choice-item"><input type="radio" name="komitmen" value="Tidak"><span>Tidak</span></label>
@@ -451,13 +468,13 @@
       <div class="step-panel" data-step="7">
         <p class="section-title">Bagian G. Upload Dokumen</p>
         <div class="field">
-          <label class="main">11. Upload Form Pernyataan</label>
-          <p class="hint">Format PDF/JPG/PNG. Maksimal 10 MB.</p>
+          <label class="main">12. Upload Form Pernyataan</label>
+          <p class="file-field-hint">Hanya format PDF. Maksimal 10 MB.</p>
           <label class="file-drop" id="fileDrop" for="fileUpload">
             <span id="fileDropText">Klik untuk memilih file, atau seret file ke sini</span>
-            <input type="file" id="fileUpload" accept=".pdf,.jpg,.jpeg,.png">
+            <input type="file" id="fileUpload" accept=".pdf,application/pdf">
           </label>
-          <p class="error-text" id="err-fileUpload">Mohon unggah Form Pernyataan (PDF/JPG/PNG, maks 10 MB).</p>
+          <p class="error-text" id="err-fileUpload">Mohon unggah Form Pernyataan dalam format PDF, maksimal 10 MB.</p>
         </div>
       </div>
 
@@ -498,7 +515,7 @@
     <div style="overflow-x:auto;">
       <table id="adminTable">
         <thead>
-          <tr><th>Tanggal</th><th>Nama Sekolah</th><th>NPSN</th><th>Koordinator</th><th>Komitmen</th><th>Status</th></tr>
+          <tr><th>Tanggal</th><th>NPSN</th><th>Nama Sekolah</th><th>Suku Dinas</th><th>Koordinator</th><th>Komitmen</th><th>Status</th></tr>
         </thead>
         <tbody id="adminTbody"></tbody>
       </table>
@@ -516,6 +533,109 @@ document.getElementById('linkPernyataan').href = LINK_FORM_PERNYATAAN;
 
 // GANTI DENGAN URL WEB APP APPS SCRIPT ANDA (lihat panduan deployment)
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzw9Ahq0IyjLkE-I4flVXIO2soT8V4gzT4gWawl3PFCAGC1Sh2VIwiH1o3RCDkQwjVO/exec';
+
+// ---------------------------------------------------------------------------
+// LOOKUP NPSN -> NAMA SEKOLAH & SUKU DINAS
+// Sumber: spreadsheet data sekolah DKI Jakarta milik ULD sendiri (di-publish
+// ke web sebagai CSV dari Google Sheets). Cakupan HANYA sekolah di wilayah
+// DKI Jakarta yang ada di sheet ini. Diperbarui otomatis setiap kali sheet
+// aslinya diedit — tidak perlu ubah kode/GitHub setiap update data.
+// ---------------------------------------------------------------------------
+const SCHOOL_DATA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRQ3x8gEaRYFtvZy18_PjTwDzsuxGlMY9YyzStHS52OLgXgWpDtkuSJDx7O_0h0yg/pub?gid=1669770565&single=true&output=csv';
+
+let schoolDataMap = null;      // Map: npsn (angka string) -> { namaSekolah, sukuDinas }
+let schoolDataLoadPromise = null;
+
+function normalizeHeaderKey(h){
+  return String(h || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function findColumn(headers, candidates){
+  const normalized = headers.map(normalizeHeaderKey);
+  for(const cand of candidates){
+    const idx = normalized.indexOf(cand);
+    if(idx !== -1) return headers[idx];
+  }
+  return null;
+}
+
+function loadSchoolData(){
+  if(schoolDataLoadPromise) return schoolDataLoadPromise;
+  schoolDataLoadPromise = new Promise((resolve)=>{
+    Papa.parse(SCHOOL_DATA_CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results){
+        try{
+          const headers = results.meta.fields || [];
+          const colNpsn = findColumn(headers, ['npsn']);
+          const colNama = findColumn(headers, ['nama satuan pendidikan','nama sekolah','nama_sekolah','nama']);
+          const colSudin = findColumn(headers, ['sudin','suku dinas','suku_dinas']);
+          const map = new Map();
+          if(colNpsn && colNama){
+            results.data.forEach(row=>{
+              const npsnRaw = String(row[colNpsn] || '').replace(/\D/g,'');
+              if(!npsnRaw) return;
+              map.set(npsnRaw, {
+                namaSekolah: (row[colNama] || '').trim(),
+                sukuDinas: colSudin ? (row[colSudin] || '').trim() : ''
+              });
+            });
+          }
+          schoolDataMap = map;
+        }catch(err){
+          console.error('Gagal memproses data sekolah:', err);
+          schoolDataMap = new Map();
+        }
+        resolve(schoolDataMap);
+      },
+      error: function(err){
+        console.error('Gagal memuat data sekolah dari spreadsheet:', err);
+        schoolDataMap = new Map();
+        resolve(schoolDataMap);
+      }
+    });
+  });
+  return schoolDataLoadPromise;
+}
+loadSchoolData(); // mulai muat di awal, sebelum pengguna mengetik NPSN
+
+let npsnLookupTimer = null;
+function setLookupStatus(text, cls){
+  const el = document.getElementById('npsnLookupStatus');
+  el.textContent = text;
+  el.className = 'lookup-status show' + (cls ? ' ' + cls : '');
+}
+function clearLookupStatus(){
+  const el = document.getElementById('npsnLookupStatus');
+  el.textContent = '';
+  el.className = 'lookup-status';
+}
+
+async function lookupNpsn(npsn){
+  setLookupStatus('Mencari data sekolah…', 'loading');
+  const map = await loadSchoolData();
+  const found = map.get(npsn);
+  if(!found || !found.namaSekolah){
+    setLookupStatus('NPSN tidak ditemukan di data sekolah DKI Jakarta. Silakan isi manual.', 'notfound');
+    return;
+  }
+  document.getElementById('namaSekolah').value = found.namaSekolah;
+  setError('namaSekolah', false);
+  if(found.sukuDinas) document.getElementById('sukuDinas').value = found.sukuDinas;
+  setLookupStatus('Data sekolah ditemukan dan terisi otomatis.', 'found');
+}
+
+document.getElementById('npsn').addEventListener('input', (e)=>{
+  const val = e.target.value.trim();
+  clearTimeout(npsnLookupTimer);
+  if(!/^[0-9]{8}$/.test(val)){
+    clearLookupStatus();
+    return;
+  }
+  npsnLookupTimer = setTimeout(()=> lookupNpsn(val), 500);
+});
 
 // ---------------------------------------------------------------------------
 // LOGO HEADER
@@ -723,6 +843,13 @@ document.getElementById('fileUpload').addEventListener('change', async (e)=>{
   const textEl = document.getElementById('fileDropText');
   const errEl = document.getElementById('err-fileUpload');
   if(!file){ return; }
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if(!isPdf){
+    errEl.textContent = 'File harus berformat PDF.';
+    errEl.classList.add('show');
+    e.target.value = '';
+    return;
+  }
   if(file.size > MAX_FILE_BYTES){
     errEl.textContent = 'Ukuran file melebihi 10 MB. Silakan pilih file yang lebih kecil.';
     errEl.classList.add('show');
@@ -763,14 +890,14 @@ function setError(id, show){
 function validateStep(step){
   let valid = true;
   if(step === 1){
-    const namaSekolah = document.getElementById('namaSekolah').value.trim();
     const npsn = document.getElementById('npsn').value.trim();
+    const namaSekolah = document.getElementById('namaSekolah').value.trim();
     const namaKoordinator = document.getElementById('namaKoordinator').value.trim();
     const hp = document.getElementById('hpKoordinator').value.trim();
 
-    setError('namaSekolah', !namaSekolah); if(!namaSekolah) valid=false;
     const npsnOk = /^[0-9]{8}$/.test(npsn);
     setError('npsn', !npsnOk); if(!npsnOk) valid=false;
+    setError('namaSekolah', !namaSekolah); if(!namaSekolah) valid=false;
     setError('namaKoordinator', !namaKoordinator); if(!namaKoordinator) valid=false;
     const hpOk = /^[0-9+()\-\s]{8,15}$/.test(hp);
     setError('hpKoordinator', !hpOk); if(!hpOk) valid=false;
@@ -790,6 +917,21 @@ function validateStep(step){
     const guru = document.getElementById('sasaranGuru').checked;
     document.getElementById('err-sasaran').classList.toggle('show', !(ortu||guru));
     if(!(ortu||guru)) valid=false;
+
+    if(ortu){
+      const namaOrtu = document.getElementById('namaOrtu').value.trim();
+      document.getElementById('err-namaOrtu').classList.toggle('show', !namaOrtu);
+      if(!namaOrtu) valid=false;
+    } else {
+      document.getElementById('err-namaOrtu').classList.remove('show');
+    }
+    if(guru){
+      const namaGuru = document.getElementById('namaGuru').value.trim();
+      document.getElementById('err-namaGuru').classList.toggle('show', !namaGuru);
+      if(!namaGuru) valid=false;
+    } else {
+      document.getElementById('err-namaGuru').classList.remove('show');
+    }
   }
   if(step === 4){
     const tujuan = document.querySelector('input[name=tujuanMateri]:checked');
@@ -839,8 +981,9 @@ function buildSubmission(status){
   return {
     id: 'SJ-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,6).toUpperCase(),
     tanggal: new Date().toISOString(),
-    namaSekolah: document.getElementById('namaSekolah').value.trim(),
     npsn: document.getElementById('npsn').value.trim(),
+    namaSekolah: document.getElementById('namaSekolah').value.trim(),
+    sukuDinas: document.getElementById('sukuDinas').value.trim(),
     namaKoordinator: document.getElementById('namaKoordinator').value.trim(),
     hpKoordinator: document.getElementById('hpKoordinator').value.trim(),
     jumlahPDBK: document.getElementById('jumlahPDBK').value,
@@ -963,8 +1106,9 @@ document.getElementById('btnDownloadPdf').addEventListener('click', ()=>{
   label('ID Pengajuan / Tanggal'); value(s.id + '  •  ' + new Date(s.tanggal).toLocaleString('id-ID'));
   checkPageBreak();
   heading('A. Identitas Instansi', 12); y += 4;
-  label('Nama Sekolah'); value(s.namaSekolah);
   label('NPSN'); value(s.npsn);
+  label('Nama Sekolah'); value(s.namaSekolah);
+  label('Suku Dinas'); value(s.sukuDinas);
   label('Koordinator / Perwakilan'); value(s.namaKoordinator);
   label('No. HP Koordinator'); value(s.hpKoordinator);
 
@@ -1038,12 +1182,13 @@ async function loadAdminData(){
     tbody.innerHTML = results.map(s=>`
       <tr>
         <td>${s['Tanggal'] ? new Date(s['Tanggal']).toLocaleDateString('id-ID') : '-'}</td>
-        <td>${s['Nama Sekolah']||'-'}</td>
         <td>${s['NPSN']||'-'}</td>
+        <td>${s['Nama Sekolah']||'-'}</td>
+        <td>${s['Suku Dinas']||'-'}</td>
         <td>${s['Koordinator']||'-'}</td>
         <td>${s['Komitmen']||'-'}</td>
         <td>${s['Status']||'-'}</td>
-      </tr>`).join('') || '<tr><td colspan="6">Belum ada data.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="7">Belum ada data.</td></tr>';
   }catch(err){
     countEl.textContent = 'Gagal memuat data dari Google Sheets. Periksa WEB_APP_URL dan pengaturan deployment.';
     console.error(err);
